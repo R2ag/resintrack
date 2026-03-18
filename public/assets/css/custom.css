@@ -1,0 +1,91 @@
+/* Custom styles for ResinTrack */
+body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+.card-compact { padding: .75rem; }
+.small-muted { color: #6c757d; font-size: .9rem; }
+.table-sm td, .table-sm th { vertical-align: middle; }
+.badge-status { font-size: .75rem; padding: .35rem .6rem; }
+/* provide a subtle container background for main content */
+main.container { min-height: calc(100vh - 160px); }
+footer.site-footer { padding: 1rem 0; background: #f8f9fa; }
+/* Melhorias de Cards KPI */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.card.border-0 {
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Estilos para Cards de KPI */
+.card-body {
+    padding: 1.5rem;
+}
+
+.display-6 {
+    font-weight: 700;
+    margin: 0.5rem 0;
+}
+
+.text-primary { color: #007bff; }
+.text-success { color: #28a745; }
+.text-info { color: #17a2b8; }
+.text-warning { color: #ffc107; }
+.text-danger { color: #dc3545; }
+
+/* Gráficos responsivos */
+canvas {
+    max-height: 350px;
+}
+
+#consumoMensalChart {
+    max-height: 300px;
+}
+
+#eficienciaChart {
+    max-height: 300px;
+}
+
+/* Melhorias em tabelas */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.table-light {
+    background-color: #f8f9fa;
+}
+
+/* Cards com sombra suave */
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+/* Responsividade para gráficos em telas pequenas */
+@media (max-width: 768px) {
+    canvas {
+        max-height: 250px;
+    }
+    
+    .display-6 {
+        font-size: 1.8rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Botões de ação pequenos */
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.btn-xs i {
+    margin-right: 0.25rem;
+}
