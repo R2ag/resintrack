@@ -86,7 +86,7 @@ CREATE TABLE lotes_entradas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     lote_id INT NOT NULL,
     quantidade DECIMAL(12,3) NOT NULL,
-    data_entrada DATE NOT NULL,
+    data_entrada DATETIME NOT NULL,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_lotes_entradas_lote
@@ -99,13 +99,34 @@ CREATE INDEX idx_lotes_entradas_lote ON lotes_entradas(lote_id);
 CREATE INDEX idx_lotes_entradas_data ON lotes_entradas(data_entrada);
 
 -- ============================================
+-- TABELA: LOTES_SAIDAS (SAÍDAS MANUAIS DE ESTOQUE)
+-- ============================================
+
+CREATE TABLE lotes_saidas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lote_id INT NOT NULL,
+    quantidade DECIMAL(12,3) NOT NULL,
+    data_saida DATETIME NOT NULL,
+    motivo VARCHAR(255) DEFAULT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_lotes_saidas_lote
+        FOREIGN KEY (lote_id) REFERENCES lotes(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_lotes_saidas_lote ON lotes_saidas(lote_id);
+CREATE INDEX idx_lotes_saidas_data ON lotes_saidas(data_saida);
+
+-- ============================================
 -- TABELA: PESAGENS
 -- ============================================
 
 CREATE TABLE pesagens (
     id INT AUTO_INCREMENT PRIMARY KEY,
     lote_id INT NOT NULL,
-    data_pesagem DATE NOT NULL,
+    data_pesagem DATETIME NOT NULL,
     peso_apurado DECIMAL(12,3) NOT NULL,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -170,7 +191,7 @@ CREATE TABLE execucoes_processos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     processo_id INT NOT NULL,
     bloco_id INT NOT NULL,
-    data_execucao DATE NOT NULL,
+    data_execucao DATETIME NOT NULL,
     qtd_chapas INT NOT NULL,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

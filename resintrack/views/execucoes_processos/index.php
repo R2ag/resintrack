@@ -24,7 +24,7 @@
           <tbody>
             <?php foreach ($execucoes as $e): ?>
             <tr>
-                <td><?= htmlentities($e['data_execucao']) ?></td>
+                <td><?= date('d/m/Y H:i', strtotime($e['data_execucao'])) ?></td>
                 <td><?= htmlentities($e['processo_nome']) ?> (<?= htmlentities($e['processo_codigo']) ?>)</td>
                 <td><?= htmlentities($e['bloco_codigo']) ?></td>
                 <td><?= htmlentities($e['material_nome']) ?></td>

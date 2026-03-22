@@ -5,12 +5,28 @@ class Dashboard extends Model
 {
     private function consumoSubquery()
     {
-        return "SELECT 
-                    ei.lote_id,
-                    SUM(ei.quantidade_por_chapa * ep.qtd_chapas)/1000 AS consumo_total
-                FROM execucoes_insumos ei
-                JOIN execucoes_processos ep ON ep.id = ei.execucao_id
-                GROUP BY ei.lote_id";
+        return "SELECT
+                    lote_id,
+                    SUM(consumo_total) as consumo_total
+                FROM (
+                    -- Consumo por processos
+                    SELECT
+                        ei.lote_id,
+                        SUM(ei.quantidade_por_chapa * ep.qtd_chapas)/1000 AS consumo_total
+                    FROM execucoes_insumos ei
+                    JOIN execucoes_processos ep ON ep.id = ei.execucao_id
+                    GROUP BY ei.lote_id
+
+                    UNION ALL
+
+                    -- Saídas manuais
+                    SELECT
+                        lote_id,
+                        SUM(quantidade) as consumo_total
+                    FROM lotes_saidas
+                    GROUP BY lote_id
+                ) consumos
+                GROUP BY lote_id";
     }
 
     private function ultimaPesagemSubquery()
@@ -56,19 +72,24 @@ class Dashboard extends Model
 
     public function percentualPerda()
     {
-        $sql = "SELECT 
-                    CASE 
+        $sql = "SELECT
+                    CASE
                         WHEN SUM(l.peso_inicial) > 0 THEN
                             SUM(
-                                (l.peso_inicial - COALESCE(c.consumo_total,0)) -
-                                (COALESCE(p.peso_apurado,0) - l.tara)
+                                CASE
+                                    WHEN p.peso_apurado IS NOT NULL THEN
+                                        -- Se há pesagem: perda = (peso_inicial - consumo) - (peso_apurado - tara)
+                                        (l.peso_inicial - COALESCE(c.consumo_total, 0)) - (p.peso_apurado - l.tara)
+                                    ELSE
+                                        0 -- Sem pesagem, não há perda calculável
+                                END
                             ) * 100 / SUM(l.peso_inicial)
                         ELSE 0
-                    END
+                    END as percentual_perda
                 FROM lotes l
-
                 LEFT JOIN ({$this->ultimaPesagemSubquery()}) p ON p.lote_id = l.id
-                LEFT JOIN ({$this->consumoSubquery()}) c ON c.lote_id = l.id";
+                LEFT JOIN ({$this->consumoSubquery()}) c ON c.lote_id = l.id
+                WHERE p.peso_apurado IS NOT NULL"; // Só calcula perda para lotes que têm pesagem
 
         return $this->db->query($sql)->fetchColumn() ?? 0;
     }
@@ -86,18 +107,18 @@ class Dashboard extends Model
     }
 
     public function consumoMensal()
-    {
-        $sql = "SELECT 
-                    DATE_FORMAT(ep.data_execucao, '%m/%Y') as mes,
-                    SUM(ei.quantidade_por_chapa * ep.qtd_chapas)/1000 as total
-                FROM execucoes_insumos ei
-                JOIN execucoes_processos ep ON ep.id = ei.execucao_id
-                WHERE ep.data_execucao >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-                GROUP BY DATE_FORMAT(ep.data_execucao, '%Y-%m')
-                ORDER BY MIN(ep.data_execucao)";
+{
+    $sql = "SELECT 
+                DATE_FORMAT(ep.data_execucao, '%m/%Y') as mes,
+                SUM(ei.quantidade_por_chapa * ep.qtd_chapas)/1000 as total
+            FROM execucoes_insumos ei
+            JOIN execucoes_processos ep ON ep.id = ei.execucao_id
+            WHERE ep.data_execucao >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+            GROUP BY DATE_FORMAT(ep.data_execucao, '%m/%Y')
+            ORDER BY MIN(ep.data_execucao) DESC";
 
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-    }
+    return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+}
 
     public function insumosPorConsumo()
     {
@@ -131,7 +152,7 @@ class Dashboard extends Model
                 FROM execucoes_insumos ei
                 JOIN execucoes_processos ep ON ep.id = ei.execucao_id
                 WHERE ep.data_execucao >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-                GROUP BY DATE_FORMAT(ep.data_execucao, '%Y-%m')
+                GROUP BY DATE_FORMAT(ep.data_execucao, '%m/%Y')
                 ORDER BY MIN(ep.data_execucao)";
 
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
@@ -235,15 +256,14 @@ class Dashboard extends Model
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function consumoDiario()
-    {
+    public function consumoDiario(){
         $sql = "SELECT 
                     DATE_FORMAT(ep.data_execucao, '%d/%m/%Y') as data,
                     SUM(ei.quantidade_por_chapa * ep.qtd_chapas)/1000 as consumo_total
                 FROM execucoes_insumos ei
                 JOIN execucoes_processos ep ON ep.id = ei.execucao_id
                 WHERE ep.data_execucao >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                GROUP BY DATE(ep.data_execucao)
+                GROUP BY DATE_FORMAT(ep.data_execucao, '%d/%m/%Y') -- Alterado para coincidir com o SELECT
                 ORDER BY MIN(ep.data_execucao)";
 
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
@@ -253,17 +273,15 @@ class Dashboard extends Model
     {
         $sql = "SELECT 
                     DATE_FORMAT(p.data_pesagem, '%d/%m/%Y') as data,
-
                     SUM(
                         (l.peso_inicial - COALESCE(c.consumo_total,0)) -
                         (p.peso_apurado - l.tara)
                     ) as perda_diaria
-
                 FROM pesagens p
                 JOIN lotes l ON l.id = p.lote_id
                 LEFT JOIN ({$this->consumoSubquery()}) c ON c.lote_id = l.id
                 WHERE p.data_pesagem >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                GROUP BY DATE(p.data_pesagem)
+                GROUP BY DATE_FORMAT(p.data_pesagem, '%d/%m/%Y') -- Alterado para coincidir
                 ORDER BY MIN(p.data_pesagem)";
 
         return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);

@@ -1,6 +1,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="h5 mb-0">Entradas do Lote: <?= htmlentities($lote['lote']) ?></h2>
-  <a href="<?= BASE_URL ?>index.php?page=lotes" class="btn btn-sm btn-outline-secondary">Voltar</a>
+  <div>
+    <a href="<?= BASE_URL ?>index.php?page=lote_saidas&id=<?= $lote['id'] ?>" class="btn btn-sm btn-secondary me-2">Ver Saídas</a>
+    <a href="<?= BASE_URL ?>index.php?page=lotes" class="btn btn-sm btn-outline-secondary">Voltar</a>
+  </div>
 </div>
 
 <div class="row">

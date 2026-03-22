@@ -90,33 +90,8 @@ class Pesagem extends Model
 
     private function atualizarSaldoLote($lote_id, $peso_apurado)
     {
-        // Buscar tara
-        $sqlLote = "SELECT tara FROM lotes WHERE id = :id";
-        $stmt = $this->db->prepare($sqlLote);
-        $stmt->bindValue(':id', $lote_id);
-        $stmt->execute();
-        $lote = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        $tara = $lote['tara'];
-
-        // Somar consumo total
-        $sqlConsumo = "SELECT SUM(ei.quantidade_por_chapa * ep.qtd_chapas) AS total
-                       FROM execucoes_insumos ei
-                       JOIN execucoes_processos ep ON ep.id = ei.execucao_id
-                       WHERE ei.lote_id = :id";
-        $stmt2 = $this->db->prepare($sqlConsumo);
-        $stmt2->bindValue(':id', $lote_id);
-        $stmt2->execute();
-        $consumo = $stmt2->fetch(PDO::FETCH_ASSOC);
-
-        $totalConsumido = ($consumo['total'] ?? 0) / 1000;
-
-        $saldo = $peso_apurado - $tara - $totalConsumido;
-
-        $sqlUpdate = "UPDATE lotes SET saldo_atual = :saldo WHERE id = :id";
-        $stmt3 = $this->db->prepare($sqlUpdate);
-        $stmt3->bindValue(':saldo', $saldo);
-        $stmt3->bindValue(':id', $lote_id);
-        $stmt3->execute();
+        require_once __DIR__ . '/Lote.php';
+        $loteModel = new Lote();
+        $loteModel->recalcularSaldo($lote_id);
     }
 }

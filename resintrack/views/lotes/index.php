@@ -38,6 +38,7 @@
               <?= $l['data_fim'] ? '<span class="badge bg-secondary">Finalizado</span>' : '<span class="badge bg-success">Ativo</span>' ?>
             </td>
             <td class="text-center">
+              <a href="<?= BASE_URL ?>index.php?page=lote_saidas&id=<?= $l['id'] ?>" class="btn btn-xs btn-secondary" title="Saídas">Saídas</a>
               <a href="<?= BASE_URL ?>index.php?page=lote_edit&id=<?= $l['id'] ?>" class="btn btn-xs btn-warning" title="Editar">Editar</a>
               <a href="<?= BASE_URL ?>index.php?page=lote_delete&id=<?= $l['id'] ?>" class="btn btn-xs btn-danger" title="Deletar" onclick="return confirm('Tem certeza que deseja deletar este lote? Todas as pesagens e execuções serão removidos.')">Deletar</a>
             </td>

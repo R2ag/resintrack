@@ -32,8 +32,8 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Data</label>
-                    <input type="date" name="data_execucao" class="form-control" value="<?= htmlentities($old['data_execucao'] ?? '') ?>" required>
+                    <label class="form-label">Data e Hora</label>
+                    <input type="datetime-local" name="data_execucao" class="form-control" value="<?= htmlentities($old['data_execucao'] ?? '') ?>" required>
                 </div>
 
                 <div class="col-md-3">

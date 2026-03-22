@@ -25,8 +25,8 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Data da Pesagem</label>
-                    <input type="date" name="data_pesagem" class="form-control" value="<?= htmlentities($pesagem['data_pesagem']) ?>" required>
+                    <label class="form-label">Data e Hora da Pesagem</label>
+                    <input type="datetime-local" name="data_pesagem" class="form-control" value="<?= htmlentities($pesagem['data_pesagem']) ?>" required>
                 </div>
 
                 <div class="col-md-3">

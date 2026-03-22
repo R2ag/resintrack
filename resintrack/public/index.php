@@ -74,6 +74,18 @@ switch ($pagina) {
         $controller->adicionarEntrada();
         break;
 
+    case 'lote_saidas':
+        require_once "../app/controllers/LoteController.php";
+        $controller = new LoteController();
+        $controller->adicionarSaida();
+        break;
+
+    case 'lote_adicionar_saida':
+        require_once "../app/controllers/LoteController.php";
+        $controller = new LoteController();
+        $controller->adicionarSaida();
+        break;
+
     case 'pesagens':
         require_once '../app/controllers/PesagemController.php';
         (new PesagemController())->index();

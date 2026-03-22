@@ -138,6 +138,50 @@ class LoteController extends Controller {
         $this->view("lotes/entradas", compact("lote","entradas"));
     }
 
+    public function adicionarSaida() {
+        $this->proteger();
+
+        $model = new Lote();
+
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            $lote_id = $_POST['lote_id'] ?? null;
+            $quantidade = $_POST['quantidade'] ?? null;
+            $data_saida = $_POST['data_saida'] ?? null;
+            $motivo = trim($_POST['motivo'] ?? '');
+
+            if (!$lote_id || !$quantidade || !$data_saida) {
+                $erro = 'Todos os campos são obrigatórios';
+                $lote = $model->buscar($lote_id);
+                $saidas = $model->getSaidas($lote_id);
+                $this->view('lotes/saidas', compact('lote','saidas','erro'));
+                return;
+            }
+
+            $ok = $model->adicionarSaida($lote_id, $quantidade, $data_saida, $motivo ?: null);
+            if (!$ok) {
+                $erro = 'Não foi possível registrar a saída (saldo insuficiente ou dados inválidos).';
+                $lote = $model->buscar($lote_id);
+                $saidas = $model->getSaidas($lote_id);
+                $this->view('lotes/saidas', compact('lote','saidas','erro'));
+                return;
+            }
+
+            header("Location: " . BASE_URL . "index.php?page=lote_saidas&id=" . $lote_id);
+            exit;
+        }
+
+        $lote_id = $_GET['id'] ?? null;
+        if (!$lote_id) {
+            header("Location: " . BASE_URL . "index.php?page=lotes");
+            exit;
+        }
+
+        $lote = $model->buscar($lote_id);
+        $saidas = $model->getSaidas($lote_id);
+
+        $this->view('lotes/saidas', compact('lote','saidas'));
+    }
+
     public function delete() {
         $this->proteger();
 

@@ -22,7 +22,7 @@
             <?php foreach ($pesagens as $p): ?>
                 <tr>
                     <td><?= htmlentities($p['lote']) ?></td>
-                    <td><?= htmlentities($p['data_pesagem']) ?></td>
+                    <td><?= date('d/m/Y H:i', strtotime($p['data_pesagem'])) ?></td>
                     <td class="text-end"><?= number_format($p['peso_apurado'], 2, ',', '.') ?> kg</td>
                     <td class="text-center">
                         <a href="<?= BASE_URL ?>index.php?page=pesagens_edit&id=<?= htmlentities($p['id']) ?>" class="btn btn-xs btn-warning" title="Editar">

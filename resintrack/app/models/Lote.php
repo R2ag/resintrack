@@ -4,6 +4,19 @@ require_once __DIR__ . '/../core/Model.php';
 class Lote extends Model
 {
 
+    private function ensureSaidasTable()
+    {
+        $this->db->exec("CREATE TABLE IF NOT EXISTS lotes_saidas (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            lote_id INT NOT NULL,
+            quantidade DECIMAL(12,3) NOT NULL,
+            data_saida DATE NOT NULL,
+            motivo VARCHAR(255) DEFAULT NULL,
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_lotes_saidas_lote FOREIGN KEY (lote_id) REFERENCES lotes(id) ON DELETE CASCADE ON UPDATE CASCADE
+        )");
+    }
+
     public function listar()
     {
 
@@ -38,6 +51,21 @@ class Lote extends Model
             FROM lotes_entradas
             WHERE lote_id = :lote_id
             ORDER BY data_entrada ASC
+        ");
+        $sql->bindValue(":lote_id", $lote_id);
+        $sql->execute();
+        return $sql->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getSaidas($lote_id)
+    {
+        $this->ensureSaidasTable();
+
+        $sql = $this->db->prepare("
+            SELECT *
+            FROM lotes_saidas
+            WHERE lote_id = :lote_id
+            ORDER BY data_saida ASC
         ");
         $sql->bindValue(":lote_id", $lote_id);
         $sql->execute();
@@ -91,6 +119,39 @@ class Lote extends Model
             $this->db->rollBack();
             return false;
         }
+    }
+
+    public function adicionarSaida($lote_id, $quantidade, $data_saida, $motivo = null)
+    {
+        $this->ensureSaidasTable();
+
+        // validação básica
+        if ($quantidade <= 0) {
+            return false;
+        }
+
+        // verificar saldo disponível
+        $lote = $this->buscar($lote_id);
+        if (!$lote || $lote['saldo_atual'] < $quantidade) {
+            return false;
+        }
+
+        // inserir saída
+        $sql = $this->db->prepare("\n            INSERT INTO lotes_saidas (lote_id, quantidade, data_saida, motivo)
+            VALUES (:lote_id, :quantidade, :data_saida, :motivo)
+        ");
+        $ok = $sql->execute([
+            ':lote_id' => $lote_id,
+            ':quantidade' => $quantidade,
+            ':data_saida' => $data_saida,
+            ':motivo' => $motivo
+        ]);
+
+        if ($ok) {
+            $this->recalcularSaldo($lote_id);
+        }
+
+        return $ok;
     }
 
     public function criar($dados)
@@ -161,8 +222,9 @@ class Lote extends Model
 
     private function calcularIndicadores($lote)
     {
+        $this->ensureSaidasTable();
 
-        // Consumo total
+        // Consumo total registrado (processos + saídas manuais)
         $sql = $this->db->prepare("
             SELECT SUM(ei.quantidade_por_chapa * ep.qtd_chapas) / 1000
             FROM execucoes_insumos ei
@@ -172,14 +234,27 @@ class Lote extends Model
         $sql->bindValue(":id", $lote['id']);
         $sql->execute();
 
-        $consumo = $sql->fetchColumn() ?? 0;
+        $consumoProcessos = $sql->fetchColumn() ?? 0;
 
-        $saldo_teorico = $lote['peso_inicial'] - $consumo;
-
-        // Última pesagem
         $sql = $this->db->prepare("
-            SELECT peso_apurado 
-            FROM pesagens 
+            SELECT COALESCE(SUM(quantidade), 0) as total_saida
+            FROM lotes_saidas
+            WHERE lote_id = :id
+        ");
+        $sql->bindValue(":id", $lote['id']);
+        $sql->execute();
+
+        $consumoManual = $sql->fetchColumn() ?? 0;
+
+        $consumo_total = $consumoProcessos + $consumoManual;
+
+        // Saldo teórico: o que deveria restar baseado nos registros
+        $saldo_teorico = $lote['peso_inicial'] - $consumo_total;
+
+        // Última pesagem física
+        $sql = $this->db->prepare("
+            SELECT peso_apurado
+            FROM pesagens
             WHERE lote_id = :id
             ORDER BY data_pesagem DESC
             LIMIT 1
@@ -187,17 +262,20 @@ class Lote extends Model
         $sql->bindValue(":id", $lote['id']);
         $sql->execute();
 
-        $ultima = $sql->fetchColumn();
+        $ultima_pesagem = $sql->fetchColumn();
 
-        if ($ultima) {
-            $saldo_real = $ultima - $lote['tara'];
+        if ($ultima_pesagem !== false) {
+            // Saldo real: o que realmente restou na pesagem física
+            $saldo_real = $ultima_pesagem - $lote['tara'];
+            // Perda/ganho: diferença entre o que deveria restar e o que realmente restou
             $perda = $saldo_teorico - $saldo_real;
         } else {
+            // Sem pesagem, saldo real = saldo teórico
             $saldo_real = $saldo_teorico;
             $perda = 0;
         }
 
-        $lote['consumo_total'] = $consumo;
+        $lote['consumo_total'] = $consumo_total;
         $lote['saldo_teorico'] = $saldo_teorico;
         $lote['saldo_real'] = $saldo_real;
         $lote['perda'] = $perda;
@@ -207,8 +285,9 @@ class Lote extends Model
 
     /**
      * Recalcula campo saldo_atual do lote a partir dos dados mais recentes
+     * O saldo_atual representa o saldo disponível para consumo futuro
      */
-    private function recalcularSaldo($lote_id)
+    public function recalcularSaldo($lote_id)
     {
         // buscar tara e peso_inicial
         $sql = $this->db->prepare("SELECT peso_inicial, tara FROM lotes WHERE id = :id");
@@ -220,12 +299,20 @@ class Lote extends Model
             return;
         }
 
-        // total consumido
+        // total consumido por processos
         $sql = $this->db->prepare("SELECT SUM(ei.quantidade_por_chapa * ep.qtd_chapas) AS total FROM execucoes_insumos ei JOIN execucoes_processos ep ON ep.id = ei.execucao_id WHERE ei.lote_id = :id");
         $sql->bindValue(':id', $lote_id);
         $sql->execute();
         $consumo = $sql->fetch(PDO::FETCH_ASSOC);
         $totalConsumido = ($consumo['total'] ?? 0) / 1000;
+
+        $this->ensureSaidasTable();
+
+        // total saídas manuais
+        $sql = $this->db->prepare("SELECT COALESCE(SUM(quantidade), 0) AS total_saida FROM lotes_saidas WHERE lote_id = :id");
+        $sql->bindValue(':id', $lote_id);
+        $sql->execute();
+        $totalSaidaManual = $sql->fetchColumn() ?? 0;
 
         // última pesagem apurada
         $sql = $this->db->prepare("SELECT peso_apurado FROM pesagens WHERE lote_id = :id ORDER BY data_pesagem DESC LIMIT 1");
@@ -233,10 +320,13 @@ class Lote extends Model
         $sql->execute();
         $ultima = $sql->fetchColumn();
 
+        // Lógica do saldo_atual:
+        // Se há pesagem, o saldo_atual é o saldo real (pesagem - tara)
+        // Se não há pesagem, o saldo_atual é o saldo teórico (peso_inicial - consumos)
         if ($ultima !== false) {
-            $saldo = $ultima - $lote['tara'] - $totalConsumido;
+            $saldo = $ultima - $lote['tara'];
         } else {
-            $saldo = $lote['peso_inicial'] - $totalConsumido;
+            $saldo = $lote['peso_inicial'] - $totalConsumido - $totalSaidaManual;
         }
 
         $sql = $this->db->prepare("UPDATE lotes SET saldo_atual = :saldo WHERE id = :id");

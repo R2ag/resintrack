@@ -228,20 +228,9 @@ class ExecucaoProcesso extends Model
 
     private function atualizarSaldo($lote_id, $consumoTotal)
     {
-        // Buscar saldo atual
-        $sql = "SELECT saldo_atual FROM lotes WHERE id = :id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(':id', $lote_id);
-        $stmt->execute();
-        $lote = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        $novoSaldo = $lote['saldo_atual'] - ($consumoTotal / 1000);
-
-        $sqlUpdate = "UPDATE lotes SET saldo_atual = :saldo WHERE id = :id";
-        $stmtUpdate = $this->db->prepare($sqlUpdate);
-        $stmtUpdate->bindValue(':saldo', $novoSaldo);
-        $stmtUpdate->bindValue(':id', $lote_id);
-        $stmtUpdate->execute();
+        require_once __DIR__ . '/Lote.php';
+        $loteModel = new Lote();
+        $loteModel->recalcularSaldo($lote_id);
     }
 }
 ?>
